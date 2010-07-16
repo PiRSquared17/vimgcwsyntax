@@ -24,7 +24,7 @@ syntax keyword googlecodewikiTodo         TODO contained
 syntax region googlecodewikiCommentRegion start='<wiki:comment>' end='</wiki:comment>' contains=googlecodewikiTodo
 
 " TODO: check URL syntax against RFC
-syntax match googlecodewikiLink           `\("[^"(]\+\((\([^)]\+\))\)\?":\)\?\(https\?\|ftp\|gopher\|telnet\|file\|notes\|ms-help\):\(\(\(//\)\|\(\\\\\)\)\+[A-Za-z0-9:#@%/;$~_?+-=.&\-\\\\]*\)`
+syntax match googlecodewikiLink           `\("[^"(]\+\((\([^)]\+\))\)\?":\)\?\(https\?\|ftp\|gopher\|telnet\|file\|notes\|ms-help\):\(\(\(//\)\|\(\\\\\)\)\+[A-Za-z0-9:#@%/;$~_?+-=.&\-\\\\]*\)` contains=@NoSpell
 syntax region googlecodewikiLinkRegion    start=/\[/ end=/\]/ contains=googlecodewikiLink oneline
 
 " TODO: The use of one of the typefaces bellow prevents the use of other.  How
@@ -37,10 +37,10 @@ syntax match googlecodewikiBold            /\(^\|\W\)\zs\*\([^ ].\{-}\)\*/
 syntax match googlecodewikiItalic          /\(^\|\W\)\zs_\([^ ].\{-}\)_/
 
 " text: `code`
-syntax match googlecodewikiCode            /`[^`]*`/
-"
+syntax match googlecodewikiCode            /`[^`]*`/ contains=@NoSpell
+
 " text: {{{code}}}
-syntax region googlecodewikiCodeRegion     start=/{{{/ end=/}}}/
+syntax region googlecodewikiCodeRegion     start=/{{{/ end=/}}}/ contains=@NoSpell
 
 "   text: ~~strike out~~
 syntax region googlecodewikiStrikeoutText  start=/^\~\~/ end=/\(\~\~\|^$\)/
