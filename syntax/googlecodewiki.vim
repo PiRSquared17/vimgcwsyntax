@@ -1,16 +1,33 @@
 " Vim syntax file
 " Language:     Google Code Wiki, http://code.google.com/p/support/wiki/WikiSyntax
-" Maintainer:   George V. Reilly  <george@reilly.org>
 " Maintainer:   Silas Silva <silasdb@gmail.com>
+" Original:     FlexWiki, mantained by George V. Reilly
 " Home:         http://code.google.com/p/vimgcwsyntax/
 " Other Home:   TODO
-" Author:       George V. Reilly
-" Author:       Silas Silva
 " Filenames:    *.wiki
-" Last Change:  Sat Jul 03 15:38 BRT 2010
 " Version:      TODO
 
-" Quit if syntax file is already loaded
+" Customized Format expression:
+"
+" This syntax file comes with the googlecodewiki#FormatExpr() function that
+" implements a function to format Google Code Wiki files.  Sometimes it is
+" desirable to use this function instead of default Vim format rules.  To use
+" this function, just :set formatexpr=googlecodewiki#FormatExpr().
+"
+" One of the most useful features of this function is that it doesn't break
+" links (all text surrounded by "[" and "]") and in-line code (all text
+" surrounded by "`").  To change this behaviour, change the following variables:
+"
+" g:googlecodewiki_break_inside_brackets: if 1, break text surrounded by "["
+" and "]".
+"
+" g:googlecodewiki_break_inside_graves: if 1, break text surrounded by "`"
+
+
+" TODO:
+
+" For version 5.x: Clear all syntax items
+" For version 6.x: Quit when a syntax file was already loaded
 if version < 600
     syntax clear
 elseif exists("b:current_syntax")
@@ -113,4 +130,144 @@ hi def link googlecodewikiSingleLineProperty    Identifier
 
 let b:current_syntax="GoogleCodeWiki"
 
-" vim: set tw=0 et:
+
+" {{{1
+" Global variables that change FormatExpr() behaviour.
+
+if !exists("g:googlecodewiki_break_inside_brackets")
+    let g:googlecodewiki_break_inside_brackets = 0
+endif
+
+if !exists("g:googlecodewiki_break_inside_graves")
+    let g:googlecodewiki_break_inside_graves = 0
+endif
+
+" {{{1
+" Format expression function to be set by the user, if he wants.  Just
+" :set formatexpr=googlecodewiki#FormatExpr()
+function googlecodewiki#FormatExpr()
+    if &textwidth == 0
+        return
+    endif
+
+    if mode() == "i"
+        call s:FormatInsertMode(v:lnum)
+    else
+        call s:FormatNormalMode(v:lnum, v:count)
+    endif
+endfunction
+
+
+" Caveats of the functions above (should be fixed in future):
+" TODO: Too much duplicated code between two function below.
+" TODO: Doesn't format correctly two or more neighboring blank lines.
+
+" {{{1
+" Format expression for the insert mode (private function).
+function s:FormatInsertMode(lnum)
+    let col = col('.')
+    if col < &textwidth
+        return
+    endif
+
+    " We parse the entire line.
+    let line = getline('.')
+    let i = 0
+    let ls = -1
+    let in_bracket = 0
+    let in_graves = 0
+    while i < col
+        if line[i] =~ '\s' && !in_bracket && !in_graves
+            " Store the last blank space where we want to break the line.
+            let ls = i
+        endif
+
+        if !g:googlecodewiki_break_inside_brackets && line[i] == '['
+            let in_bracket = 1
+        endif
+        if !g:googlecodewiki_break_inside_brackets && line[i] == ']'
+            let in_bracket = 0
+        endif
+
+        if !g:googlecodewiki_break_inside_graves && line[i] == '`'
+            let in_graves = !in_graves
+        endif
+
+        let i += 1
+    endwhile
+
+    if ls == -1
+        return
+    endif
+
+    let before = strpart(line, 0, ls)
+    let after = strpart(line, ls + 1)
+    let lines = [before, after]
+
+    " Append as new lines.
+    call append((a:lnum-1), lines)
+
+    " And delete old ones.
+    exe ":.d"
+
+    " Set the cursor to the line below (created after break).
+    call cursor(a:lnum+1, strlen(after)+1)
+endfunction
+
+
+" {{{1
+" Format expression for insert mode (private function)
+function s:FormatNormalMode(lnum, count)
+    let lines = getline(a:lnum, a:lnum + a:count - 1)
+
+    " Let's combine all lines we want to format in one.
+    let all = join(lines, " ")
+
+    " We the unified line.
+    let col = 0
+    let ls = -1
+    let last = 0
+    let i = 0
+    let in_bracket = 0
+    let in_graves = 0
+    while i < strlen(all)
+        if all[i] =~ '\s' && !in_bracket && !in_graves
+            " Store the last blank space where we want to break the line.
+            let ls = i
+        endif
+
+        if !g:googlecodewiki_break_inside_brackets && all[i] == '['
+            let in_bracket = 1
+        endif
+        if !g:googlecodewiki_break_inside_brackets && all[i] == ']'
+            let in_bracket = 0
+        endif
+
+        if !g:googlecodewiki_break_inside_graves && all[i] == '`'
+            let in_graves = !in_graves
+        endif
+
+        if (col >= &textwidth && ls != last)
+            let before = strpart(all, 0, ls)
+            let after = strpart(all, ls + 1)
+            let all = before . "\n" . after
+            let col = 0
+            let start = ls
+            let i = ls + 1
+            let last = ls
+        endif
+        let col += 1
+        let i += 1
+    endwhile
+
+    " Get a list of lines, correctly formated.
+    let lines = split(all, '\n\|\s$', 1)
+
+    " Delete the lines.
+    exe ":.,+" . (str2nr(a:count)-1) . "d"
+
+    " Now append the formated ones.
+    call append((a:lnum-1), lines)
+endfunction
+
+" vim: set tw=0 et sw=4 sts=4 fdm=marker:
