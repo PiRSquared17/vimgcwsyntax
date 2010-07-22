@@ -200,6 +200,9 @@ function s:FormatInsertMode(lnum)
         return
     endif
 
+    let length = strlen(line)
+    let col = col('.')
+
     let before = strpart(line, 0, ls)
     let after = strpart(line, ls + 1)
     let lines = [before, after]
@@ -210,8 +213,11 @@ function s:FormatInsertMode(lnum)
     " And delete old ones.
     exe ":.d"
 
+    " offset from the end of the line
+    let back = length - col
+
     " Set the cursor to the line below (created after break).
-    call cursor(a:lnum+1, strlen(after)+1)
+    call cursor(a:lnum+1, strlen(after) - back)
 endfunction
 
 
