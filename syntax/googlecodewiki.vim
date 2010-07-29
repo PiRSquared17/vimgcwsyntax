@@ -55,7 +55,7 @@ syntax match googlecodewikiItalic          /\(^\|\W\)\zs_\([^ ].\{-}\)_/
 syntax match googlecodewikiCode            /`[^`]*`/ contains=@NoSpell
 
 " text: {{{code}}}
-syntax region googlecodewikiCodeRegion     start=/{{{/ end=/}}}/ contains=@NoSpell
+syntax region googlecodewikiCodeRegion     start=/{{{/ end=/}}}/ contains=@NoSpell fold
 
 "   text: ~~strike out~~
 syntax region googlecodewikiStrikeoutText  start=/^\~\~/ end=/\(\~\~\|^$\)/
@@ -81,6 +81,11 @@ syntax match googlecodewikiH3             /^===.*===$/
 syntax match googlecodewikiH4             /^====.*====$/
 syntax match googlecodewikiH5             /^=====.*=====$/
 syntax match googlecodewikiH6             /^======.*======$/
+
+" Define a region that represents text between title, that is used for folding.
+" TODO:  should I make it hierarchically?
+syntax region googlecodewikiTextBetweenTitle transparent 
+            \ start=/^=.*=\s*$/ end=/^=.*=\s*$/me=s-1 fold
 
 " <hr>, horizontal rule
 syntax match googlecodewikiHR             /^----*$/
@@ -249,6 +254,8 @@ function s:FormatInsertMode(lnum)
     call append((a:lnum-1), lines)
 
     " And delete old ones.
+    " TODO: It echos "x fewer lines" in Vim prompt.  Is it possible to replace
+    " append + exec for a better manner?  Maybe with setline()?
     exec ":.d"
 
     " offset from the end of the line
@@ -264,13 +271,24 @@ endfunction
 function s:FormatNormalMode(lnum, count)
     let lines = getline(a:lnum, a:lnum + a:count - 1)
 
+    " The following loop implements a state machine to detect paragraphs.  It
+    " has three states:
+    "
+    " - "new": A new paragraph was detected
+    " - "paragraph": the parser is yet on the paragraph detected before
+    " - "end": the end of the paragraph was found.
+    "
+    " When the state machine reaches the "end" state, it is time to format the
+    " current paragraph.  It joins all the lines of the paragraph and call
+    " BreakLine() on it.
     let i = 0
     let state = 'new'
     let start_par = 0
     let end_par = 0
     while i < len(lines)
+        " Was a new paragraph detected?
         if state == 'new'
-            if (s:IsBlank(lines[i]))
+            if (s:LineIsBlank(lines[i]))
                 let i += 1
                 continue
             else
@@ -279,8 +297,9 @@ function s:FormatNormalMode(lnum, count)
             endif
         endif
 
+        " Are we still in the last paragraph we detected?
         if state == 'paragraph'
-            if (! s:IsBlank(lines[i]) && i < len(lines)-1)
+            if (! s:LineIsBlank(lines[i]) && i < len(lines)-1)
                 let i+= 1
                 continue
             else
@@ -289,6 +308,7 @@ function s:FormatNormalMode(lnum, count)
             endif
         endif
 
+        " Is it the end of the paragraph?
         if state == 'end'
             " Normally, this variable should be zero.  But for one special
             " case, when my range is just one line (in the case the user wants
@@ -305,6 +325,8 @@ function s:FormatNormalMode(lnum, count)
             let newlines = s:BreakLine(all_lines, &textwidth)
 
             " Delete old line
+            " TODO: It echos "x fewer lines" in Vim prompt.  Is it possible to
+            " replace append + exec for a better manner?  Maybe with setline()?
             exec ":" . (a:lnum+start_par) . "d " . (end_par - start_par + offset)
 
             " Append new one
@@ -312,19 +334,17 @@ function s:FormatNormalMode(lnum, count)
         endif
         let i += 1
     endwhile
-
-    " Delete the lines.
-
-    " Now append the formated ones.
-    "call append((a:lnum-1), lines)
 endfunction
 
 "{{{1
-function s:IsBlank(str)
+" Returns true or false if a line is blank (contains no characters or only
+" spaces).
+function s:LineIsBlank(str)
     return (a:str =~ '^\s*$')
 endfunction
 
 "{{{1
+" Given a 'list', returns a sublist beginning in 'start', with 'count' items.
 function s:SubList(list, start, count)
     let l = []
     let i = 0
