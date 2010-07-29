@@ -24,8 +24,6 @@
 " g:googlecodewiki_break_inside_graves: if 1, break text surrounded by "`"
 
 
-" TODO:
-
 " For version 5.x: Clear all syntax items
 " For version 6.x: Quit when a syntax file was already loaded
 if version < 600
@@ -47,7 +45,7 @@ syntax region googlecodewikiLinkRegion    start=/\[/ end=/\]/ contains=googlecod
 " TODO: The use of one of the typefaces bellow prevents the use of other.  How
 " to combine them?
 
-" text: *strong* 
+" text: *strong*
 syntax match googlecodewikiBold            /\(^\|\W\)\zs\*\([^ ].\{-}\)\*/
 
 " text: _emphasis_
@@ -159,65 +157,105 @@ endfunction
 
 
 " Caveats of the functions above (should be fixed in future):
-" TODO: Too much duplicated code between two function below.
+"
 " TODO: Doesn't format correctly two or more neighboring blank lines.
+" It lacks handling of formatoptions.  'M' option is specially important.
+
+
+" {{{1
+" Breaks a line according to the rules.
+function s:BreakLine(line, textwidth)
+    let col = 1
+    let i = 0
+    let ls = -1
+    let last = -1
+    let in_brackets = 0
+    let in_graves = 0
+    let breaks = []
+    while i < strlen(a:line)
+        if a:line[i] =~ '\s' && !in_brackets && !in_graves
+            " Store the last blank space where we want to break the line.
+            let ls = i
+        endif
+
+        if !g:googlecodewiki_break_inside_brackets && a:line[i] == '['
+            let in_brackets = 1
+        endif
+        if !g:googlecodewiki_break_inside_brackets && a:line[i] == ']'
+            let in_brackets = 0
+        endif
+
+        if !g:googlecodewiki_break_inside_graves && a:line[i] == '`'
+            let in_graves = !in_graves
+        endif
+
+        if col > a:textwidth && ls != last
+            let breaks = add(breaks, ls)
+            let in_brackets = 0
+            let in_graves = 0
+            let col = 1
+            let last = ls
+            let i = ls
+        else
+            let col += 1
+        endif
+        let i += 1
+    endwhile
+
+    " The line can be long, but anyway it can be continuous.  E.g.: [a long
+    " text in brackets].  If the line don't break, return a one-element list:
+    " the line itself.
+    if empty(breaks)
+        return [a:line]
+    endif
+
+    let lines = []
+    let linestart = 0
+    let breaks = add(breaks, strlen(a:line))
+    for brk in breaks
+        let lineend = brk
+        let newline = strpart(a:line, linestart, lineend-linestart)
+
+        " Chop out trailing spaces
+        let newline = substitute(newline, '^\s\+', '', '')
+
+        let lines = add(lines, newline)
+        let linestart = lineend
+    endfor
+
+    return lines
+endfunction
 
 " {{{1
 " Format expression for the insert mode (private function).
 function s:FormatInsertMode(lnum)
     let col = col('.')
-    if col < &textwidth
+    if col <= &textwidth
         return
     endif
 
     " We parse the entire line.
     let line = getline('.')
-    let i = 0
-    let ls = -1
-    let in_bracket = 0
-    let in_graves = 0
-    while i < col
-        if line[i] =~ '\s' && !in_bracket && !in_graves
-            " Store the last blank space where we want to break the line.
-            let ls = i
-        endif
-
-        if !g:googlecodewiki_break_inside_brackets && line[i] == '['
-            let in_bracket = 1
-        endif
-        if !g:googlecodewiki_break_inside_brackets && line[i] == ']'
-            let in_bracket = 0
-        endif
-
-        if !g:googlecodewiki_break_inside_graves && line[i] == '`'
-            let in_graves = !in_graves
-        endif
-
-        let i += 1
-    endwhile
-
-    if ls == -1
-        return
-    endif
-
     let length = strlen(line)
     let col = col('.')
 
-    let before = strpart(line, 0, ls)
-    let after = strpart(line, ls + 1)
-    let lines = [before, after]
+    let lines = s:BreakLine(line, &textwidth-1)
+
+    if len(lines) == 1
+        return
+    endif
 
     " Append as new lines.
     call append((a:lnum-1), lines)
 
     " And delete old ones.
-    exe ":.d"
+    exec ":.d"
 
     " offset from the end of the line
     let back = length - col
 
     " Set the cursor to the line below (created after break).
-    call cursor(a:lnum+1, strlen(after) - back)
+    call cursor(a:lnum+1, strlen(lines[1]) - back)
 endfunction
 
 
@@ -226,54 +264,75 @@ endfunction
 function s:FormatNormalMode(lnum, count)
     let lines = getline(a:lnum, a:lnum + a:count - 1)
 
-    " Let's combine all lines we want to format in one.
-    let all = join(lines, " ")
-
-    " We the unified line.
-    let col = 0
-    let ls = -1
-    let last = 0
     let i = 0
-    let in_bracket = 0
-    let in_graves = 0
-    while i < strlen(all)
-        if all[i] =~ '\s' && !in_bracket && !in_graves
-            " Store the last blank space where we want to break the line.
-            let ls = i
+    let state = 'new'
+    let start_par = 0
+    let end_par = 0
+    while i < len(lines)
+        if state == 'new'
+            if (s:IsBlank(lines[i]))
+                let i += 1
+                continue
+            else
+                let state = 'paragraph'
+                let start_par = i
+            endif
         endif
 
-        if !g:googlecodewiki_break_inside_brackets && all[i] == '['
-            let in_bracket = 1
-        endif
-        if !g:googlecodewiki_break_inside_brackets && all[i] == ']'
-            let in_bracket = 0
+        if state == 'paragraph'
+            if (! s:IsBlank(lines[i]) && i < len(lines)-1)
+                let i+= 1
+                continue
+            else
+                let state = 'end'
+                let end_par = i
+            endif
         endif
 
-        if !g:googlecodewiki_break_inside_graves && all[i] == '`'
-            let in_graves = !in_graves
-        endif
+        if state == 'end'
+            " Normally, this variable should be zero.  But for one special
+            " case, when my range is just one line (in the case the user wants
+            " to format only one line explicitally (in visual mode or passing a
+            " range) or implicitally (one last at the end of the file), then I
+            " should set it to one to sum it below.  If I don't do that, the
+            " delete line triggers an error.
+            let offset = 0
+            if end_par - start_par == 0
+                let offset = 1
+            endif
 
-        if (col >= &textwidth && ls != last)
-            let before = strpart(all, 0, ls)
-            let after = strpart(all, ls + 1)
-            let all = before . "\n" . after
-            let col = 0
-            let start = ls
-            let i = ls + 1
-            let last = ls
+            let all_lines = join(s:SubList(lines, start_par, end_par-start_par+offset), " ")
+            let newlines = s:BreakLine(all_lines, &textwidth)
+
+            " Delete old line
+            exec ":" . (a:lnum+start_par) . "d " . (end_par - start_par + offset)
+
+            " Append new one
+            call append((a:lnum+start_par-1), newlines)
         endif
-        let col += 1
         let i += 1
     endwhile
 
-    " Get a list of lines, correctly formated.
-    let lines = split(all, '\n\|\s$', 1)
-
     " Delete the lines.
-    exe ":.,+" . (str2nr(a:count)-1) . "d"
 
     " Now append the formated ones.
-    call append((a:lnum-1), lines)
+    "call append((a:lnum-1), lines)
+endfunction
+
+"{{{1
+function s:IsBlank(str)
+    return (a:str =~ '^\s*$')
+endfunction
+
+"{{{1
+function s:SubList(list, start, count)
+    let l = []
+    let i = 0
+    while i < a:count && i < len(a:list)
+        let l = add(l, a:list[i+a:start])
+        let i += 1
+    endwhile
+    return l
 endfunction
 
 " vim: set tw=0 et sw=4 sts=4 fdm=marker:
