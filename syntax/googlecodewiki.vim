@@ -3,9 +3,37 @@
 " Maintainer:   Silas Silva <silasdb@gmail.com>
 " Original:     FlexWiki, mantained by George V. Reilly
 " Home:         http://code.google.com/p/vimgcwsyntax/
-" Other Home:   TODO
+" Other Home:   http://www.vim.org/scripts/script.php?script_id=3173
 " Filenames:    *.wiki
 " Version:      0.1
+
+
+" Description
+" ===========
+"
+" This is a syntax file for Google Code Wiki, supporting highlighting of main
+" features of Google Code Wiki, like:
+"
+" * Formating (bold, emphasis etc.)
+" * Code text
+" * Block links
+" * Google Code Wiki pragmas
+" * Titles
+" * Folding between sections and in code block
+"
+" Besides syntax and folding features, it has a powerful function for the
+" formatexpr option. Just :set formatexpr=googlecodewiki#FormatExpr() and you
+" will be able to format your texts without breaking link blocks or quote
+" blocks. This features can be turned off with global variables.
+"
+" Install Details
+" ===============
+"
+" Just put it in your syntax directory. In you .vimrc, include the following
+" line to associate .wiki files to the googlecodewiki syntax:
+"
+"     autocmd BufRead *.wiki set ft=googlecodewiki
+
 
 " Customized Format expression:
 "
