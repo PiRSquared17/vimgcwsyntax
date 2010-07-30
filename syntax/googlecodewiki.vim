@@ -5,7 +5,7 @@
 " Home:         http://code.google.com/p/vimgcwsyntax/
 " Other Home:   TODO
 " Filenames:    *.wiki
-" Version:      TODO
+" Version:      0.1
 
 " Customized Format expression:
 "
