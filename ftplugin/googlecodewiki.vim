@@ -56,7 +56,7 @@ endif
 " {{{1
 " Format expression function to be set by the user, if he wants.  Just
 " :set formatexpr=googlecodewiki#FormatExpr()
-function googlecodewiki#FormatExpr()
+function! googlecodewiki#FormatExpr()
     if &textwidth == 0
         return
     endif
@@ -77,7 +77,7 @@ endfunction
 
 " {{{1
 " Breaks a line according to the rules.
-function s:BreakLine(line, textwidth)
+function! s:BreakLine(line, textwidth)
     let col = 1
     let i = 0
     let ls = -1
@@ -141,7 +141,7 @@ endfunction
 
 " {{{1
 " Format expression for the insert mode (private function).
-function s:FormatInsertMode(lnum)
+function! s:FormatInsertMode(lnum)
     let col = col('.')
     if col <= &textwidth
         return
@@ -176,7 +176,7 @@ endfunction
 
 " {{{1
 " Format expression for insert mode (private function)
-function s:FormatNormalMode(lnum, count)
+function! s:FormatNormalMode(lnum, count)
     let lines = getline(a:lnum, a:lnum + a:count - 1)
 
     " The following loop implements a state machine to detect paragraphs.  It
@@ -247,13 +247,13 @@ endfunction
 "{{{1
 " Returns true or false if a line is blank (contains no characters or only
 " spaces).
-function s:LineIsBlank(str)
+function! s:LineIsBlank(str)
     return (a:str =~ '^\s*$')
 endfunction
 
 "{{{1
 " Given a 'list', returns a sublist beginning in 'start', with 'count' items.
-function s:SubList(list, start, count)
+function! s:SubList(list, start, count)
     let l = []
     let i = 0
     while i < a:count && i < len(a:list)
