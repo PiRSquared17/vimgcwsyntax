@@ -2,9 +2,9 @@
 " Language:     Google Code Wiki, http://code.google.com/p/support/wiki/WikiSyntax
 " Maintainer:   Silas Silva <silasdb@gmail.com>
 " Home:         http://code.google.com/p/vimgcwsyntax/
-" Other Home:
+" Other Home:   http://www.vim.org/scripts/script.php?script_id=3173
 " Filenames:    *.wiki
-" Version:
+" Version:      1.0
 
 " Description
 " ===========

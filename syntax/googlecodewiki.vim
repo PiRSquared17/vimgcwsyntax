@@ -5,7 +5,7 @@
 " Home:         http://code.google.com/p/vimgcwsyntax/
 " Other Home:   http://www.vim.org/scripts/script.php?script_id=3173
 " Filenames:    *.wiki
-" Version:      0.1
+" Version:      1.0
 
 
 " Description
